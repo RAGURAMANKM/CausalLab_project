@@ -5,3 +5,5 @@ numpy
 pandas
 scipy
 pytest
+pymc
+scikit-learn
