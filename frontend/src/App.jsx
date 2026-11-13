@@ -282,7 +282,6 @@ function App() {
   // =====================================================
 
   useEffect(() => {
-    // Mark the current browser history entry as a CausalLab page.
     const currentState = window.history.state || {};
 
     window.history.replaceState(
@@ -294,8 +293,6 @@ function App() {
       window.location.href
     );
 
-    // When the user presses the browser Back or Forward button,
-    // restore the page stored in that history entry.
     const handlePopState = (event) => {
       const historyTab = event.state?.causalLabTab;
 
@@ -314,7 +311,6 @@ function App() {
     return () => {
       window.removeEventListener("popstate", handlePopState);
     };
-    // The browser listener is installed once.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -331,7 +327,7 @@ function App() {
       });
   }, []);
 
-  // Send requests to the backend
+  // Send POST requests to the backend
   const postRequest = async (endpoint, payload) => {
     const response = await fetch(`${API_URL}${endpoint}`, {
       method: "POST",
@@ -362,6 +358,7 @@ function App() {
 
   // =====================================================
   // SAMPLE SIZE CALCULATOR
+  // Backend route: GET /sample-size
   // =====================================================
 
   const calculateSampleSize = async (event) => {
@@ -396,15 +393,41 @@ function App() {
       return;
     }
 
+    if (
+      !Number.isFinite(significance) ||
+      significance <= 0 ||
+      significance >= 1 ||
+      !Number.isFinite(statisticalPower) ||
+      statisticalPower <= 0 ||
+      statisticalPower >= 1
+    ) {
+      setError("Alpha and power must be between 0 and 1.");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const data = await postRequest("/sample-size", {
-        baseline_rate: baseline,
-        target_rate: target,
-        alpha: significance,
-        power: statisticalPower,
+      const params = new URLSearchParams({
+        baseline_rate: String(baseline),
+        target_rate: String(target),
+        alpha: String(significance),
+        power: String(statisticalPower),
       });
+
+      const response = await fetch(
+        `${API_URL}/sample-size?${params.toString()}`
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.detail ||
+            data.message ||
+            `Request failed with status ${response.status}`
+        );
+      }
 
       setSampleResult(data);
     } catch (err) {
@@ -416,6 +439,7 @@ function App() {
 
   // =====================================================
   // A/B TESTING
+  // Backend route: POST /analyze-ab-test
   // =====================================================
 
   const handleCsvUpload = async (event) => {
@@ -539,7 +563,7 @@ function App() {
     setAbLoading(true);
 
     try {
-      const data = await postRequest("/ab-test", {
+      const data = await postRequest("/analyze-ab-test", {
         data: abRows.map((row) => ({
           group: row.group,
           converted: Number(row.converted),
@@ -1809,8 +1833,6 @@ function App() {
       return;
     }
 
-    // Create a new browser history entry whenever the user
-    // navigates to another page inside the application.
     if (title !== activeTab) {
       window.history.pushState(
         {
